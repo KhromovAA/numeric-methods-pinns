@@ -55,3 +55,31 @@ class PINN(nn.Module):
     def forward(self, xy):
         return self.net(xy)
 
+
+def u_exact(x, y):
+    return torch.sin(2 * math.pi * x) * torch.cos(3 * math.pi * y)
+
+
+def f_rhs(x, y):
+    return -13 * math.pi**2 * torch.sin(2 * math.pi * x) * torch.cos(3 * math.pi * y)
+
+
+def laplacian(model, xy):
+    u = model(xy)
+    du = torch.autograd.grad(u.sum(), xy, create_graph=True)[0]
+    d2u_dx2 = torch.autograd.grad(du[:, 0].sum(), xy, create_graph=True)[0][:, 0]
+    d2u_dy2 = torch.autograd.grad(du[:, 1].sum(), xy, create_graph=True)[0][:, 1]
+    return d2u_dx2 + d2u_dy2
+
+
+def pde_loss(model, xy_col):
+    lap = laplacian(model, xy_col)
+    f = f_rhs(xy_col[:, 0], xy_col[:, 1])
+    return ((lap - f) ** 2).mean()
+
+
+def bc_loss(model, xy_bc):
+    u_pred = model(xy_bc).squeeze(1)
+    u_true = u_exact(xy_bc[:, 0], xy_bc[:, 1])
+    return ((u_pred - u_true) ** 2).mean()
+
