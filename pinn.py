@@ -56,6 +56,25 @@ class PINN(nn.Module):
         return self.net(xy)
 
 
+class SafeNet(nn.Module):
+    def __init__(self, n_fourier=256, sigma=5.0, hidden_layers=1, hidden_width=64):
+        super().__init__()
+        B = torch.randn(n_fourier, 2) * sigma
+        self.register_buffer('B', B)
+
+        in_dim = 2 * n_fourier
+        layers = [nn.Linear(in_dim, hidden_width), nn.Tanh()]
+        for _ in range(hidden_layers - 1):
+            layers += [nn.Linear(hidden_width, hidden_width), nn.Tanh()]
+        layers += [nn.Linear(hidden_width, 1)]
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, xy):
+        proj = xy @ self.B.T
+        feat = torch.cat([torch.sin(proj), torch.cos(proj)], dim=1)
+        return self.net(feat)
+
+
 def u_exact(x, y):
     return torch.sin(2 * math.pi * x) * torch.cos(3 * math.pi * y)
 
