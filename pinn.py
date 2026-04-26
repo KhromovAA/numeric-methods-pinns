@@ -75,6 +75,32 @@ class SafeNet(nn.Module):
         return self.net(feat)
 
 
+class HyResPINN(nn.Module):
+    def __init__(self, hidden_layers=3, hidden_width=64, n_rbf=64):
+        super().__init__()
+        layers = [nn.Linear(2, hidden_width), nn.Tanh()]
+        for _ in range(hidden_layers - 1):
+            layers += [nn.Linear(hidden_width, hidden_width), nn.Tanh()]
+        layers += [nn.Linear(hidden_width, 1)]
+        self.mlp = nn.Sequential(*layers)
+
+        self.centers   = nn.Parameter(torch.rand(n_rbf, 2))
+        self.log_sigma = nn.Parameter(torch.zeros(n_rbf))
+        self.rbf_w     = nn.Parameter(torch.zeros(n_rbf))
+        self.alpha_raw = nn.Parameter(torch.zeros(1))
+
+    def _rbf(self, xy):
+        diff  = xy.unsqueeze(1) - self.centers.unsqueeze(0)   # (N, K, 2)
+        r2    = (diff ** 2).sum(-1)                            # (N, K)
+        sigma2 = self.log_sigma.exp() ** 2                    # (K,)
+        phi   = torch.exp(-r2 / (sigma2 + 1e-8))              # (N, K)
+        return (phi * self.rbf_w).sum(-1, keepdim=True)        # (N, 1)
+
+    def forward(self, xy):
+        alpha = torch.sigmoid(self.alpha_raw)
+        return alpha * self.mlp(xy) + (1 - alpha) * self._rbf(xy)
+
+
 def u_exact(x, y):
     return torch.sin(2 * math.pi * x) * torch.cos(3 * math.pi * y)
 
