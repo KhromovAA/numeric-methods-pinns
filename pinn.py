@@ -109,11 +109,11 @@ def f_rhs(x, y):
     return -13 * math.pi**2 * torch.sin(2 * math.pi * x) * torch.cos(3 * math.pi * y)
 
 
-def laplacian(model, xy):
+def laplacian(model, xy, retain_graph=None):
     u = model(xy)
-    du = torch.autograd.grad(u.sum(), xy, create_graph=True)[0]
-    d2u_dx2 = torch.autograd.grad(du[:, 0].sum(), xy, create_graph=True)[0][:, 0]
-    d2u_dy2 = torch.autograd.grad(du[:, 1].sum(), xy, create_graph=True)[0][:, 1]
+    du = torch.autograd.grad(u.sum(), xy, create_graph=True, retain_graph=retain_graph)[0]
+    d2u_dx2 = torch.autograd.grad(du[:, 0].sum(), xy, create_graph=True, retain_graph=retain_graph)[0][:, 0]
+    d2u_dy2 = torch.autograd.grad(du[:, 1].sum(), xy, create_graph=True, retain_graph=retain_graph)[0][:, 1]
     return d2u_dx2 + d2u_dy2
 
 
